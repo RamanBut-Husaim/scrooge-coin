@@ -3,8 +3,8 @@ package scrooge.coin;
 import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class TxHandler {
 
@@ -48,7 +48,7 @@ public class TxHandler {
         if (possibleTxs == null) {
             return new Transaction[0];
         }
-        HashMap<byte[], Transaction> transactionMap = getTransactionMap(possibleTxs);
+        ConcurrentHashMap<byte[], Transaction> transactionMap = getTransactionMap(possibleTxs);
 
         ArrayList<Transaction> validTransactions = new ArrayList<Transaction>();
 
@@ -78,9 +78,9 @@ public class TxHandler {
         return validTransactions.toArray(new Transaction[validTransactions.size()]);
     }
 
-    private HashMap<byte[], Transaction> getTransactionMap(Transaction[] transactions) {
+    private ConcurrentHashMap<byte[], Transaction> getTransactionMap(Transaction[] transactions) {
 
-        HashMap<byte[], Transaction> transactionMap = new HashMap<byte[], Transaction>();
+        ConcurrentHashMap<byte[], Transaction> transactionMap = new ConcurrentHashMap<byte[], Transaction>();
 
         for (Transaction transaction : transactions) {
             transactionMap.put(transaction.getHash(), transaction);
