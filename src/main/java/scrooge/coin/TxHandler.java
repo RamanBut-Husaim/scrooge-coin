@@ -1,8 +1,10 @@
 package scrooge.coin;
 
 import java.security.PublicKey;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Set;
 
 public class TxHandler {
 
@@ -43,8 +45,75 @@ public class TxHandler {
      * updating the current UTXO pool as appropriate.
      */
     public Transaction[] handleTxs(Transaction[] possibleTxs) {
-        // IMPLEMENT THIS
-        return new Transaction[0];
+        if (possibleTxs == null) {
+            return new Transaction[0];
+        }
+        HashMap<byte[], Transaction> transactionMap = getTransactionMap(possibleTxs);
+
+        ArrayList<Transaction> validTransactions = new ArrayList<Transaction>();
+
+        while (true) {
+            int unprocessedTransactionsCount = transactionMap.size();
+            Collection<Transaction> unprocessedTransactions = transactionMap.values();
+
+            for (Transaction transaction : unprocessedTransactions) {
+                if (!isValidTx(transaction)) {
+                    continue;
+                }
+
+                validTransactions.add(transaction);
+                this.processTransaction(transaction);
+                transactionMap.remove(transaction.getHash());
+            }
+
+            if (unprocessedTransactionsCount == 0) {
+                break;
+            }
+
+            if (unprocessedTransactionsCount == transactionMap.size()) {
+                break;
+            }
+        }
+
+        return validTransactions.toArray(new Transaction[validTransactions.size()]);
+    }
+
+    private HashMap<byte[], Transaction> getTransactionMap(Transaction[] transactions) {
+
+        HashMap<byte[], Transaction> transactionMap = new HashMap<byte[], Transaction>();
+
+        for (Transaction transaction : transactions) {
+            transactionMap.put(transaction.getHash(), transaction);
+        }
+
+        return transactionMap;
+    }
+
+    private void processTransaction(Transaction tx) {
+
+        this.removeProcessedInputs(tx);
+
+        this.addTransactionOutputs(tx);
+    }
+
+    private void addTransactionOutputs(Transaction transaction){
+
+        byte[] transactionHash = transaction.getHash();
+
+        for (int index = 0; index < transaction.numOutputs(); ++index) {
+            Transaction.Output output = transaction.getOutput(index);
+
+            UTXO utxo = new UTXO(transactionHash, index);
+
+            this.utxoPool.addUTXO(utxo, output);
+        }
+    }
+
+    private void removeProcessedInputs(Transaction transaction) {
+        for (Transaction.Input input : transaction.getInputs()) {
+            UTXO utxo = new UTXO(input.prevTxHash, input.outputIndex);
+            this.utxoPool.removeUTXO(utxo);
+        }
     }
 
     private final class TransactionValidator {
@@ -116,7 +185,7 @@ public class TxHandler {
 
         // rule #3
         private boolean verifyDoubleSpendingAbsence(Transaction transaction) {
-            HashSet<UTXO> spentOutputs = new HashSet<>();
+            HashSet<UTXO> spentOutputs = new HashSet<UTXO>();
 
             for (int i = 0; i < transaction.numInputs(); ++i) {
                 UTXO claimedOutput = getClaimedOutput(transaction, i);
